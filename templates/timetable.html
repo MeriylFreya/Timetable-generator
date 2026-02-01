@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}View Timetable - Timetable Generator{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timetable-container {
+        overflow-x: auto;
+    }
+    
+    .timetable-grid {
+        min-width: 900px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .timetable-grid th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        font-weight: 600;
+        text-align: center;
+        border: 2px solid white;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .timetable-grid td {
+        padding: 8px;
+        border: 2px solid #e5e7eb;
+        min-height: 100px;
+        vertical-align: top;
+        background: white;
+        transition: background-color 0.3s;
+    }
+    
+    .timetable-grid td.drop-target {
+        background: #dbeafe;
+        border-color: #3b82f6;
+    }
+    
+    .subject-block {
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        cursor: move;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s;
+        position: relative;
+    }
+    
+    .subject-block:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .subject-block.dragging {
+        opacity: 0.5;
+        transform: rotate(2deg);
+    }
+    
+    .subject-name {
+        font-weight: bold;
+        font-size: 0.95rem;
+        margin-bottom: 4px;
+    }
+    
+    .teacher-name {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .empty-slot {
+        min-height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 0.9rem;
+    }
+    
+    .period-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    }
+    
+    .day-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+        position: sticky;
+        left: 0;
+        z-index: 11;
+    }
+    
+    .class-selector {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    
+    .subject-colors {
+        --math-color: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        --physics-color: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+        --chemistry-color: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        --cs-color: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --english-color: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        --default-color: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    }
+    
+    .color-math { background: var(--math-color); }
+    .color-physics { background: var(--physics-color); }
+    .color-chemistry { background: var(--chemistry-color); }
+    .color-cs { background: var(--cs-color); }
+    .color-english { background: var(--english-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% if classrooms %}
+    <div class="class-selector">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h4 class="mb-0">
+                    <i class="fas fa-table"></i> Timetable Viewer
+                </h4>
+            </div>
+            <div class="col-md-6">
+                <form method="GET" action="/timetable" class="d-flex gap-2">
+                    <select class="form-select" name="classroom_id" onchange="this.form.submit()">
+                        {% for classroom in classrooms %}
+                        <option value="{{ classroom.id }}" {% if current_classroom and classroom.id == current_classroom.id %}selected{% endif %}>
+                            {{ classroom.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    {% if current_classroom %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                <i class="fas fa-calendar-week"></i> 
+                Timetable for {{ current_classroom.name }}
+            </span>
+            <span class="badge bg-light text-dark">
+                Drag & Drop to Edit
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                <strong>How to use:</strong> Drag any subject block and drop it into another time slot. 
+                The system will automatically check for teacher clashes and prevent invalid moves.
+            </div>
+            
+            <div id="messageArea"></div>
+            
+            <div class="timetable-container">
+                <table class="timetable-grid table">
+                    <thead>
+                        <tr>
+                            <th class="day-header">Day / Period</th>
+                            <th class="period-header">Period 1<br><small>9:00-10:00</small></th>
+                            <th class="period-header">Period 2<br><small>10:00-11:00</small></th>
+                            <th class="period-header">Period 3<br><small>11:00-12:00</small></th>
+                            <th class="period-header">Period 4<br><small>12:00-1:00</small></th>
+                            <th class="period-header">Period 5<br><small>2:00-3:00</small></th>
+                            <th class="period-header">Period 6<br><small>3:00-4:00</small></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in days %}
+                        <tr>
+                            <th class="day-header">{{ day }}</th>
+                            {% for period in range(1, 7) %}
+                            <td class="drop-zone" 
+                                data-day="{{ day }}" 
+                                data-period="{{ period }}"
+                                data-timeslot-id="{{ timeslots | selectattr('day', 'equalto', day) | selectattr('period_number', 'equalto', period) | map(attribute='id') | first }}">
+                                {% set entry = timetable_grid[day][period] %}
+                                {% if entry %}
+                                <div class="subject-block" 
+                                     draggable="true"
+                                     data-entry-id="{{ entry.id }}"
+                                     data-subject="{{ entry.subject.name }}"
+                                     data-teacher="{{ entry.teacher.name }}">
+                                    <div class="subject-name">
+                                        <i class="fas fa-book"></i> {{ entry.subject.name }}
+                                    </div>
+                                    <div class="teacher-name">
+                                        <i class="fas fa-user-tie"></i> {{ entry.teacher.name }}
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="empty-slot">
+                                    <i class="fas fa-plus-circle"></i> Free
+                                </div>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> 
+                Please select a class to view its timetable.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="card">
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> 
+                No classes found. Please add classes first and generate timetables.
+            </div>
+            <a href="/" class="btn btn-primary">
+                <i class="fas fa-home"></i> Go to Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+let draggedElement = null;
+let sourceCell = null;
+
+// Make all subject blocks draggable
+document.querySelectorAll('.subject-block').forEach(block => {
+    block.addEventListener('dragstart', handleDragStart);
+    block.addEventListener('dragend', handleDragEnd);
+});
+
+// Make all cells drop zones
+document.querySelectorAll('.drop-zone').forEach(cell => {
+    cell.addEventListener('dragover', handleDragOver);
+    cell.addEventListener('drop', handleDrop);
+    cell.addEventListener('dragleave', handleDragLeave);
+});
+
+function handleDragStart(e) {
+    draggedElement = this;
+    sourceCell = this.closest('.drop-zone');
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('.drop-zone').forEach(cell => {
+        cell.classList.remove('drop-target');
+    });
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    this.classList.add('drop-target');
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drop-target');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    e.preventDefault();
+    this.classList.remove('drop-target');
+    
+    const targetCell = this;
+    
+    if (draggedElement && targetCell !== sourceCell) {
+        const entryId = draggedElement.dataset.entryId;
+        const newTimeslotId = targetCell.dataset.timeslotId;
+        
+        // Check if target cell is empty or has a subject
+        const targetSubject = targetCell.querySelector('.subject-block');
+        
+        if (targetSubject) {
+            // Swap operation
+            showMessage('Swapping is not yet implemented. Please drag to an empty slot.', 'warning');
+        } else {
+            // Move operation
+            moveEntry(entryId, newTimeslotId, draggedElement, targetCell, sourceCell);
+        }
+    }
+    
+    return false;
+}
+
+function moveEntry(entryId, newTimeslotId, draggedBlock, targetCell, sourceCell) {
+    fetch('/move-entry', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            entry_id: parseInt(entryId),
+            new_timeslot_id: parseInt(newTimeslotId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Move the element in the DOM
+            const emptySlot = targetCell.querySelector('.empty-slot');
+            if (emptySlot) {
+                emptySlot.remove();
+            }
+            targetCell.appendChild(draggedBlock);
+            
+            // Create empty slot in source cell
+            if (!sourceCell.querySelector('.subject-block')) {
+                sourceCell.innerHTML = '<div class="empty-slot"><i class="fas fa-plus-circle"></i> Free</div>';
+            }
+            
+            showMessage(data.message, 'success');
+        } else {
+            showMessage(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showMessage('Error: ' + error.message, 'danger');
+    });
+}
+
+function showMessage(message, type) {
+    const messageArea = document.getElementById('messageArea');
+    messageArea.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = messageArea.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

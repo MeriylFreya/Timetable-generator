@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-home"></i> Dashboard
+                </div>
+                <div class="card-body">
+                    <h3 class="mb-4">Welcome to College Timetable Generator</h3>
+                    <p class="lead">
+                        This system helps you automatically generate clash-free timetables for all classes with drag-and-drop editing capabilities.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> Quick Start Guide:</h5>
+                        <ol class="mb-0">
+                            <li>Add <strong>Teachers</strong> to the system</li>
+                            <li>Create <strong>Subjects</strong> and assign them to teachers</li>
+                            <li>Define <strong>Classes</strong> (e.g., CSE-A, ECE-B)</li>
+                            <li>Set <strong>Subject Requirements</strong> (how many periods per week for each subject in each class)</li>
+                            <li>Click <strong>Generate Timetable</strong> to auto-create schedules</li>
+                            <li>Use the <strong>Drag & Drop Editor</strong> to manually adjust the timetable</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div class="card-body">
+                    <i class="fas fa-chalkboard-teacher fa-3x mb-3"></i>
+                    <h3>Teachers</h3>
+                    <p>Manage faculty members</p>
+                    <a href="/teachers" class="btn btn-light mt-2">
+                        <i class="fas fa-arrow-right"></i> Manage
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card text-center" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <div class="card-body">
+                    <i class="fas fa-book fa-3x mb-3"></i>
+                    <h3>Subjects</h3>
+                    <p>Manage course subjects</p>
+                    <a href="/subjects" class="btn btn-light mt-2">
+                        <i class="fas fa-arrow-right"></i> Manage
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card text-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                <div class="card-body">
+                    <i class="fas fa-door-open fa-3x mb-3"></i>
+                    <h3>Classes</h3>
+                    <p>Manage classrooms</p>
+                    <a href="/classes" class="btn btn-light mt-2">
+                        <i class="fas fa-arrow-right"></i> Manage
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card text-center" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+                <div class="card-body">
+                    <i class="fas fa-cog fa-3x mb-3"></i>
+                    <h3>Requirements</h3>
+                    <p>Set subject periods</p>
+                    <a href="/requirements" class="btn btn-light mt-2">
+                        <i class="fas fa-arrow-right"></i> Configure
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-bolt"></i> Generate Timetable
+                </div>
+                <div class="card-body text-center">
+                    <p class="lead mb-4">Ready to generate timetables for all classes?</p>
+                    <button id="generateBtn" class="btn btn-success btn-lg">
+                        <i class="fas fa-magic"></i> Generate Timetables Now
+                    </button>
+                    <div id="generationMessage" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle"></i> Features
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <h5><i class="fas fa-check-circle text-success"></i> Auto-Generation</h5>
+                            <p>Automatically generates clash-free timetables using intelligent algorithms.</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <h5><i class="fas fa-shield-alt text-primary"></i> Conflict Prevention</h5>
+                            <p>Prevents teacher clashes and ensures no double-booking of classes.</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <h5><i class="fas fa-hand-pointer text-warning"></i> Drag & Drop</h5>
+                            <p>Manually adjust timetables with intuitive drag-and-drop interface.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('generateBtn').addEventListener('click', function() {
+    const btn = this;
+    const messageDiv = document.getElementById('generationMessage');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    messageDiv.innerHTML = '';
+    
+    fetch('/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            messageDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> ${data.message}
+                    <br>
+                    <a href="/timetable" class="btn btn-primary mt-2">
+                        <i class="fas fa-eye"></i> View Timetables
+                    </a>
+                </div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> Error: ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        messageDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i> Error: ${error.message}
+            </div>
+        `;
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> Generate Timetables Now';
+    });
+});
+</script>
+{% endblock %}

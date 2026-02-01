@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Classes - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-plus-circle"></i> Add Class
+                </div>
+                <div class="card-body">
+                    <form action="/classes/add" method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Class Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., CSE-A, ECE-B">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus"></i> Add Class
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-list"></i> All Classes
+                </div>
+                <div class="card-body">
+                    {% if classrooms %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Class Name</th>
+                                    <th>Subjects Configured</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for classroom in classrooms %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <i class="fas fa-door-open text-success"></i> 
+                                        <strong>{{ classroom.name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if classroom.requirements %}
+                                            <span class="badge bg-success">
+                                                {{ classroom.requirements|length }} subject(s)
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">No subjects configured</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form action="/classes/delete/{{ classroom.id }}" method="POST" style="display: inline;" 
+                                              onsubmit="return confirm('Are you sure you want to delete this class?');">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No classes found. Add your first class using the form on the left.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

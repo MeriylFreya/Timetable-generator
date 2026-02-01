@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Subject Requirements - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-5 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-plus-circle"></i> Add/Update Subject Requirement
+                </div>
+                <div class="card-body">
+                    <form action="/requirements/add" method="POST">
+                        <div class="mb-3">
+                            <label for="classroom_id" class="form-label">Class</label>
+                            <select class="form-select" id="classroom_id" name="classroom_id" required>
+                                <option value="">Select a class...</option>
+                                {% for classroom in classrooms %}
+                                <option value="{{ classroom.id }}">{{ classroom.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="subject_id" class="form-label">Subject</label>
+                            <select class="form-select" id="subject_id" name="subject_id" required>
+                                <option value="">Select a subject...</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.teacher.name }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="periods_per_week" class="form-label">Periods per Week</label>
+                            <input type="number" class="form-control" id="periods_per_week" name="periods_per_week" 
+                                   min="1" max="6" required placeholder="e.g., 5">
+                            <small class="form-text text-muted">How many periods per week for this subject?</small>
+                        </div>
+                        
+                        {% if not classrooms or not subjects %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Please add {% if not classrooms %}classes{% endif %}
+                            {% if not classrooms and not subjects %}and{% endif %}
+                            {% if not subjects %}subjects{% endif %} first.
+                        </div>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-primary w-100" 
+                                {% if not classrooms or not subjects %}disabled{% endif %}>
+                            <i class="fas fa-save"></i> Save Requirement
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-list"></i> All Subject Requirements
+                </div>
+                <div class="card-body">
+                    {% if requirements %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Class</th>
+                                    <th>Subject</th>
+                                    <th>Teacher</th>
+                                    <th>Periods/Week</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in requirements %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ req.classroom.name }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ req.subject.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ req.subject.teacher.name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ req.periods_per_week }} periods</span>
+                                    </td>
+                                    <td>
+                                        <form action="/requirements/delete/{{ req.id }}" method="POST" style="display: inline;" 
+                                              onsubmit="return confirm('Are you sure you want to delete this requirement?');">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Total Requirements:</strong> {{ requirements|length }}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No requirements configured. 
+                        Add your first requirement using the form on the left.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if requirements %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar"></i> Requirements Summary by Class
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for classroom in classrooms %}
+                        {% set class_reqs = requirements | selectattr('classroom.id', 'equalto', classroom.id) | list %}
+                        {% if class_reqs %}
+                        <div class="col-md-4 mb-3">
+                            <h5>{{ classroom.name }}</h5>
+                            <ul class="list-group">
+                                {% for req in class_reqs %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ req.subject.name }}
+                                    <span class="badge bg-primary rounded-pill">{{ req.periods_per_week }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <div class="mt-2">
+                                <strong>Total Periods: </strong>
+                                {{ class_reqs | sum(attribute='periods_per_week') }} / 30
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

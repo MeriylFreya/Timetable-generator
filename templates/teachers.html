@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Teachers - Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-plus-circle"></i> Add Teacher
+                </div>
+                <div class="card-body">
+                    <form action="/teachers/add" method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Teacher Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., Dr. John Smith">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus"></i> Add Teacher
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-list"></i> All Teachers
+                </div>
+                <div class="card-body">
+                    {% if teachers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Subjects Assigned</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for teacher in teachers %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <i class="fas fa-user-tie text-primary"></i> 
+                                        <strong>{{ teacher.name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if teacher.subjects %}
+                                            {% for subject in teacher.subjects %}
+                                                <span class="badge bg-info">{{ subject.name }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">No subjects assigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form action="/teachers/delete/{{ teacher.id }}" method="POST" style="display: inline;" 
+                                              onsubmit="return confirm('Are you sure you want to delete this teacher?');">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No teachers found. Add your first teacher using the form on the left.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
