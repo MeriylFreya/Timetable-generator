@@ -4,100 +4,122 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-home"></i> Dashboard
-                </div>
-                <div class="card-body">
-                    <h3 class="mb-4">Welcome to College Timetable Generator</h3>
-                    <p class="lead">
-                        This system helps you automatically generate clash-free timetables for all classes with drag-and-drop editing capabilities.
-                    </p>
-                    
-                    <div class="alert alert-info">
-                        <h5><i class="fas fa-info-circle"></i> Quick Start Guide:</h5>
-                        <ol class="mb-0">
-                            <li>Add <strong>Teachers</strong> to the system</li>
-                            <li>Create <strong>Subjects</strong> and assign them to teachers</li>
-                            <li>Define <strong>Classes</strong> (e.g., CSE-A, ECE-B)</li>
-                            <li>Set <strong>Subject Requirements</strong> (how many periods per week for each subject in each class)</li>
-                            <li>Click <strong>Generate Timetable</strong> to auto-create schedules</li>
-                            <li>Use the <strong>Drag & Drop Editor</strong> to manually adjust the timetable</li>
-                        </ol>
+    <div class="page-intro">
+        <div class="eyebrow">Academic scheduling</div>
+        <h1 class="mt-2 mb-2">Build a timetable that works.</h1>
+        <p>Set up your teaching data, define weekly requirements, and generate a clash-aware schedule for every class.</p>
+    </div>
+
+    <details class="card mb-4">
+        <summary class="card-header d-flex justify-content-between align-items-center" style="cursor: pointer;">
+            <span><i class="fas fa-sliders me-2 text-primary"></i>Timetable configuration</span>
+            <span class="text-muted small">Days, periods and breaks</span>
+        </summary>
+        <div class="card-body">
+            <form action="/settings" method="POST">
+                <div class="row g-3">
+                    <div class="col-lg-5">
+                        <label class="form-label">Working days</label>
+                        <div id="dayList" class="d-grid gap-2">
+                            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                            <label class="border rounded p-2 d-flex align-items-center gap-2" draggable="true">
+                                <input type="checkbox" name="days" value="{{ day }}" {% if day in config.days %}checked{% endif %}>
+                                <span>{{ day }}</span><i class="fas fa-grip-lines ms-auto text-muted small"></i>
+                            </label>
+                            {% endfor %}
+                            {% for day in config.days if day not in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                            <label class="border rounded p-2 d-flex align-items-center gap-2" draggable="true">
+                                <input type="checkbox" name="days" value="{{ day }}" checked>
+                                <span>{{ day }}</span><i class="fas fa-grip-lines ms-auto text-muted small"></i>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <label class="form-label mt-3" for="custom_days">Additional days</label>
+                        <input class="form-control" id="custom_days" name="custom_days" placeholder="e.g. Studio, Lab day">
+                        <div class="form-text">Separate custom day names with commas. Drag selected days to reorder.</div>
+                    </div>
+                    <div class="col-lg-7">
+                        <label class="form-label">Daily time structure</label>
+                        <input type="hidden" name="daily_structure" id="daily_structure">
+                        <div id="structureRows" class="d-grid gap-2"></div>
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="addStructureRow('class')"><i class="fas fa-plus me-1"></i> Class period</button>
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="addStructureRow('break')"><i class="fas fa-plus me-1"></i> Short break</button>
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="addStructureRow('lunch')"><i class="fas fa-plus me-1"></i> Lunch</button>
+                        </div>
+                        <div class="form-text">This order and timing is copied to every selected day.</div>
                     </div>
                 </div>
-            </div>
+                <hr class="my-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4"><label class="form-label" for="title">Default export title</label><input class="form-control" id="title" name="title" value="{{ config.title }}"></div>
+                    <div class="col-md-3"><label class="form-label" for="institution">Institution</label><input class="form-control" id="institution" name="institution" value="{{ config.institution }}"></div>
+                    <div class="col-md-3"><label class="form-label" for="academic_period">Academic year / semester</label><input class="form-control" id="academic_period" name="academic_period" value="{{ config.academic_period }}"></div>
+                    <div class="col-md-4"><label class="form-label" for="subtitle">Optional subtitle</label><input class="form-control" id="subtitle" name="subtitle" value="{{ config.subtitle }}"></div>
+                    <div class="col-md-2 d-flex gap-2"><button class="btn btn-primary flex-grow-1" type="submit">Save setup</button></div>
+                </div>
+                <div class="mt-2"><button class="btn btn-link btn-sm text-muted px-0" formaction="/settings/reset" formmethod="POST" type="submit">Reset daily structure</button></div>
+                <details class="mt-3"><summary class="small text-muted">Different timing for selected days</summary><label class="form-label mt-2" for="day_overrides">Optional day overrides (JSON)</label><textarea class="form-control" id="day_overrides" name="day_overrides" rows="2" placeholder='{"Saturday":[{"type":"class","label":"Period 1","start":"08:00","end":"09:00"}]}'>{{ config.day_overrides if config.day_overrides != '{}' else '' }}</textarea></details>
+            </form>
         </div>
-    </div>
-    
-    <div class="row">
+    </details>
+
+    {% if classrooms and subjects %}
+    <details class="card mb-4">
+        <summary class="card-header" style="cursor: pointer;"><i class="fas fa-people-arrows text-primary me-2"></i>Combined classes</summary>
+        <div class="card-body">
+            <form action="/combined" method="POST" class="row g-3 align-items-end">
+                <div class="col-md-3"><label class="form-label" for="combined_name">Group name</label><input class="form-control" id="combined_name" name="name" placeholder="e.g. Year 1 Mathematics" required></div>
+                <div class="col-md-3"><label class="form-label" for="combined_subject">Shared subject</label><select class="form-select" id="combined_subject" name="subject_id" required><option value="">Select subject</option>{% for subject in subjects %}<option value="{{ subject.id }}">{{ subject.name }}</option>{% endfor %}</select></div>
+                <div class="col-md-4"><label class="form-label" for="combined_classes">Classes / sections</label><select class="form-select" id="combined_classes" name="classroom_ids" multiple required>{% for classroom in classrooms %}<option value="{{ classroom.id }}">{{ classroom.name }}</option>{% endfor %}</select></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Add group</button></div>
+            </form>
+            {% if combined_groups %}<div class="small text-muted mt-3">Configured: {% for group in combined_groups %}<span class="badge bg-light text-dark me-1">{{ group.name }}</span>{% endfor %}</div>{% endif %}
+        </div>
+    </details>
+    {% endif %}
+
+    <div class="row g-3">
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="card h-100">
                 <div class="card-body">
-                    <i class="fas fa-chalkboard-teacher fa-3x mb-3"></i>
-                    <h3>Teachers</h3>
-                    <p>Manage faculty members</p>
-                    <a href="/teachers" class="btn btn-light mt-2">
-                        <i class="fas fa-arrow-right"></i> Manage
+                    <div class="eyebrow">01</div><h3 class="h5 mt-2">Teachers</h3>
+                    <p class="text-muted small">Add faculty and their teaching assignments.</p>
+                    <a href="/teachers" class="btn btn-outline-secondary btn-sm mt-2">Manage <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
             </div>
         </div>
         
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card text-center" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+            <div class="card h-100">
                 <div class="card-body">
-                    <i class="fas fa-book fa-3x mb-3"></i>
-                    <h3>Subjects</h3>
-                    <p>Manage course subjects</p>
-                    <a href="/subjects" class="btn btn-light mt-2">
-                        <i class="fas fa-arrow-right"></i> Manage
+                    <div class="eyebrow">02</div><h3 class="h5 mt-2">Subjects</h3>
+                    <p class="text-muted small">Create courses and assign each teacher.</p>
+                    <a href="/subjects" class="btn btn-outline-secondary btn-sm mt-2">Manage <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
             </div>
         </div>
         
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card text-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+            <div class="card h-100">
                 <div class="card-body">
-                    <i class="fas fa-door-open fa-3x mb-3"></i>
-                    <h3>Classes</h3>
-                    <p>Manage classrooms</p>
-                    <a href="/classes" class="btn btn-light mt-2">
-                        <i class="fas fa-arrow-right"></i> Manage
+                    <div class="eyebrow">03</div><h3 class="h5 mt-2">Classes</h3>
+                    <p class="text-muted small">Define the groups that need schedules.</p>
+                    <a href="/classes" class="btn btn-outline-secondary btn-sm mt-2">Manage <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
             </div>
         </div>
         
         <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card text-center" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+            <div class="card h-100">
                 <div class="card-body">
-                    <i class="fas fa-cog fa-3x mb-3"></i>
-                    <h3>Requirements</h3>
-                    <p>Set subject periods</p>
-                    <a href="/requirements" class="btn btn-light mt-2">
-                        <i class="fas fa-arrow-right"></i> Configure
+                    <div class="eyebrow">04</div><h3 class="h5 mt-2">Requirements</h3>
+                    <p class="text-muted small">Set how often each subject meets weekly.</p>
+                    <a href="/requirements" class="btn btn-outline-secondary btn-sm mt-2">Configure <i class="fas fa-arrow-right ms-1"></i>
                     </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-bolt"></i> Generate Timetable
-                </div>
-                <div class="card-body text-center">
-                    <p class="lead mb-4">Ready to generate timetables for all classes?</p>
-                    <button id="generateBtn" class="btn btn-success btn-lg">
-                        <i class="fas fa-magic"></i> Generate Timetables Now
-                    </button>
-                    <div id="generationMessage" class="mt-3"></div>
                 </div>
             </div>
         </div>
@@ -105,30 +127,66 @@
     
     <div class="row mt-4">
         <div class="col-12">
-            <div class="card">
+            <div class="card border-primary-subtle">
                 <div class="card-header">
-                    <i class="fas fa-info-circle"></i> Features
+                    <i class="fas fa-wand-magic-sparkles text-primary me-2"></i> Generate timetable
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <h5><i class="fas fa-check-circle text-success"></i> Auto-Generation</h5>
-                            <p>Automatically generates clash-free timetables using intelligent algorithms.</p>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <h5><i class="fas fa-shield-alt text-primary"></i> Conflict Prevention</h5>
-                            <p>Prevents teacher clashes and ensures no double-booking of classes.</p>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <h5><i class="fas fa-hand-pointer text-warning"></i> Drag & Drop</h5>
-                            <p>Manually adjust timetables with intuitive drag-and-drop interface.</p>
-                        </div>
-                    </div>
+                <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <p class="mb-0 text-muted">Create a fresh schedule using the current setup.</p>
+                    <button id="generateBtn" class="btn btn-primary">
+                        <i class="fas fa-wand-magic-sparkles me-1"></i> Generate timetable
+                    </button>
+                    <div id="generationMessage" class="mt-3"></div>
                 </div>
             </div>
         </div>
     </div>
+    
 </div>
+
+<script>
+let structure = {{ config.structure | tojson }};
+const structureRows = document.getElementById('structureRows');
+
+function renderStructure() {
+    structureRows.innerHTML = structure.map((row, index) => `
+        <div class="border rounded p-2 d-flex flex-wrap align-items-center gap-2" draggable="true" data-index="${index}">
+            <i class="fas fa-grip-lines text-muted"></i>
+            <select class="form-select form-select-sm" style="width: 120px" onchange="updateStructure(${index}, 'type', this.value)">
+                <option value="class" ${row.type === 'class' ? 'selected' : ''}>Class</option>
+                <option value="break" ${row.type === 'break' ? 'selected' : ''}>Short break</option>
+                <option value="lunch" ${row.type === 'lunch' ? 'selected' : ''}>Lunch</option>
+            </select>
+            <input class="form-control form-control-sm flex-grow-1" value="${row.label || ''}" placeholder="Label" onchange="updateStructure(${index}, 'label', this.value)">
+            <input class="form-control form-control-sm" style="width: 125px" type="time" value="${row.start}" onchange="updateStructure(${index}, 'start', this.value)">
+            <span class="text-muted">to</span>
+            <input class="form-control form-control-sm" style="width: 125px" type="time" value="${row.end}" onchange="updateStructure(${index}, 'end', this.value)">
+            <button class="btn btn-outline-danger btn-sm" type="button" aria-label="Remove row" onclick="removeStructureRow(${index})"><i class="fas fa-trash"></i></button>
+        </div>`).join('');
+    document.getElementById('daily_structure').value = JSON.stringify(structure);
+    structureRows.querySelectorAll('[data-index]').forEach(row => {
+        row.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', row.dataset.index));
+        row.addEventListener('dragover', event => event.preventDefault());
+        row.addEventListener('drop', event => { event.preventDefault(); const from = Number(event.dataTransfer.getData('text/plain')); const to = Number(row.dataset.index); const moved = structure.splice(from, 1)[0]; structure.splice(to, 0, moved); renderStructure(); });
+    });
+}
+function updateStructure(index, key, value) { structure[index][key] = value; document.getElementById('daily_structure').value = JSON.stringify(structure); }
+function addStructureRow(type) { const last = structure[structure.length - 1]; structure.push({type, label: type === 'lunch' ? 'Lunch' : type === 'break' ? 'Short break' : `Period ${structure.filter(row => row.type === 'class').length + 1}`, start: last ? last.end : '09:00', end: last ? last.end : '10:00'}); renderStructure(); }
+function removeStructureRow(index) { structure.splice(index, 1); renderStructure(); }
+renderStructure();
+
+document.querySelectorAll('#dayList label').forEach(item => {
+    item.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', 'move'));
+    item.addEventListener('dragover', event => event.preventDefault());
+    item.addEventListener('drop', event => {
+        event.preventDefault();
+        const source = document.querySelector('#dayList label[aria-grabbed="true"]');
+        if (source && source !== item) item.parentNode.insertBefore(source, item);
+    });
+    item.addEventListener('dragend', () => item.removeAttribute('aria-grabbed'));
+    item.addEventListener('dragstart', () => item.setAttribute('aria-grabbed', 'true'));
+});
+</script>
 
 <script>
 document.getElementById('generateBtn').addEventListener('click', function() {
