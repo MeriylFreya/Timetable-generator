@@ -1,6 +1,7 @@
 # College Timetable Generator
 
 A small Flask application for building and maintaining weekly college timetables. It generates schedules for multiple classes, checks teacher and class conflicts, and lets you make manual adjustments from the browser.
+https://timetable-generator-jm36.onrender.com/
 
 ## What it does
 
